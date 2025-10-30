@@ -4,7 +4,7 @@
 #include "sensor.h"
 
 // Typedef for array of sensors
-typedef Sensor* SensorArray;
+typedef Sensor** SensorArray;
 
 // Function pointer for logging
 typedef void (*Logger)(const char* message);
