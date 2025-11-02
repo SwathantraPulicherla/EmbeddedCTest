@@ -46,69 +46,14 @@ jobs:
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
-        set -x  # Enable command echoing for debugging
         cd target-repo
-        
-        echo "[WORKFLOW] Starting test generation..."
-        echo "[WORKFLOW] Current directory: $(pwd)"
-        echo "[WORKFLOW] Source files found:"
-        find src/ -name "*.c" -type f || echo "No .c files found"
-        
-        # Clean up old test artifacts before generation (don't fail if they don't exist)
-        echo "[WORKFLOW] Cleaning up old artifacts..."
-        if [ -d tests ]; then
-          echo "[WORKFLOW] Existing tests directory contents before cleanup:" 
-          find tests -maxdepth 2 -type f -print 2>/dev/null || echo "Could not list files"
-          
-          # Force remove all files and directories with proper permissions
-          echo "[WORKFLOW] Forcing removal of old test files..."
-          find tests -type f -exec rm -f {} \; 2>/dev/null || echo "Some files could not be removed"
-          find tests -type d -exec rmdir {} \; 2>/dev/null || echo "Some directories could not be removed"
-          rm -rf tests 2>/dev/null || echo "Could not remove tests directory"
-        fi
-        
-        # Ensure clean tests directory exists
-        mkdir -p tests 2>/dev/null || echo "Could not create tests directory"
-        echo "[WORKFLOW] Tests directory cleaned. Current contents:"
-        ls -la tests 2>/dev/null || echo "Could not list tests directory"
-        
-        # Verify API key is set
-        if [ -z "$GEMINI_API_KEY" ]; then
-          echo "[ERROR] GEMINI_API_KEY is not set!"
-          exit 1
-        fi
-        echo "[WORKFLOW] API key is set (length: ${#GEMINI_API_KEY} characters)"
-        
-        # Debug: Check if ai-c-testgen command is available
-        echo "[DEBUG] Checking if ai-c-testgen is available..."
-        which ai-c-testgen || echo "ai-c-testgen not found in PATH - trying python module"
-        
-        # Debug: Test Python import
-        echo "[DEBUG] Testing Python import..."
-        python -c "from ai_c_test_generator.cli import main; print('Import successful')" || echo "Import failed"
-        
+        # Clean up old test artifacts before generation
+        rm -rf tests/compilation_report/
+        rm -rf tests/test_reports/
+        # Force regeneration by removing existing test files (they will be regenerated with quality checks)
+        rm -f tests/test_*.c
         # Generate tests with same quality settings as local development
-        echo "[WORKFLOW] Calling ai-c-testgen..."
-        echo "[DEBUG] Starting tool execution..."
-        echo "[DEBUG] Current directory: $(pwd)"
-        echo "[DEBUG] Files in current directory:"
-        ls -la | head -10
-        echo "[DEBUG] Files in src directory:"
-        ls -la src/ | head -10
-        timeout 300 python -c "
-import os
-os.environ['GEMINI_API_KEY'] = '$GEMINI_API_KEY'
-print('Starting tool execution...')
-from ai_c_test_generator.cli import main
-import sys
-sys.argv = ['cli', '--repo-path', '.', '--source-dir', 'src', '--verbose', '--max-files', '1']
-print('About to call main()...')
-main()
-print('Tool execution completed successfully')
-" 2>&1 | head -30
-        echo "[DEBUG] Tool execution finished"
-        echo "[WORKFLOW] Test generation completed!"
-      timeout-minutes: 90
+        ai-c-testgen --api-key "$GEMINI_API_KEY" --source-dir src/ --regenerate-on-low-quality --max-regeneration-attempts 3 --quality-threshold high --redact-sensitive --verbose
 
     - name: Show validation reports
       run: |
