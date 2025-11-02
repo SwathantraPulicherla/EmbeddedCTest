@@ -48,6 +48,7 @@ jobs:
       run: |
         set -x  # Enable command echoing for debugging
         cd target-repo
+        
         echo "[WORKFLOW] Starting test generation..."
         echo "[WORKFLOW] Current directory: $(pwd)"
         echo "[WORKFLOW] Source files found:"
@@ -78,9 +79,22 @@ jobs:
         fi
         echo "[WORKFLOW] API key is set (length: ${#GEMINI_API_KEY} characters)"
         
+        # Debug: Check if ai-c-testgen command is available
+        echo "[DEBUG] Checking if ai-c-testgen is available..."
+        which ai-c-testgen || echo "ai-c-testgen not found in PATH - trying python module"
+        
+        # Debug: Test Python import
+        echo "[DEBUG] Testing Python import..."
+        python -c "from ai_c_test_generator.cli import main; print('Import successful')" || echo "Import failed"
+        
         # Generate tests with same quality settings as local development
         echo "[WORKFLOW] Calling ai-c-testgen..."
-        ai-c-testgen --api-key "$GEMINI_API_KEY" --source-dir src/ --regenerate-on-low-quality --max-regeneration-attempts 3 --quality-threshold high --redact-sensitive --verbose
+        if command -v ai-c-testgen > /dev/null 2>&1; then
+          ai-c-testgen --api-key "$GEMINI_API_KEY" --source-dir src/ --regenerate-on-low-quality --max-regeneration-attempts 3 --quality-threshold high --redact-sensitive --verbose
+        else
+          echo "[FALLBACK] Using python -m instead of ai-c-testgen command"
+          python -m ai_c_test_generator.cli --api-key "$GEMINI_API_KEY" --source-dir src/ --regenerate-on-low-quality --max-regeneration-attempts 3 --quality-threshold high --redact-sensitive --verbose
+        fi
         echo "[WORKFLOW] Test generation completed!"
       timeout-minutes: 90
 
