@@ -57,13 +57,19 @@ jobs:
         echo "[WORKFLOW] Cleaning up old artifacts..."
         if [ -d tests ]; then
           echo "[WORKFLOW] Existing tests directory contents before cleanup:" 
-          find tests -maxdepth 2 -type f -print || true
-          chmod -R u+w tests || true
+          find tests -maxdepth 2 -type f -print 2>/dev/null || echo "Could not list files"
+          
+          # Force remove all files and directories with proper permissions
+          echo "[WORKFLOW] Forcing removal of old test files..."
+          find tests -type f -exec rm -f {} \; 2>/dev/null || echo "Some files could not be removed"
+          find tests -type d -exec rmdir {} \; 2>/dev/null || echo "Some directories could not be removed"
+          rm -rf tests 2>/dev/null || echo "Could not remove tests directory"
         fi
-        rm -rf tests || true
-        mkdir -p tests || true
+        
+        # Ensure clean tests directory exists
+        mkdir -p tests 2>/dev/null || echo "Could not create tests directory"
         echo "[WORKFLOW] Tests directory cleaned. Current contents:"
-        ls -R tests || true
+        ls -la tests 2>/dev/null || echo "Could not list tests directory"
         
         # Verify API key is set
         if [ -z "$GEMINI_API_KEY" ]; then
