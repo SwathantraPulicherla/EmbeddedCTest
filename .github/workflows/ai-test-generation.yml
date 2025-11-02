@@ -90,8 +90,23 @@ jobs:
         # Generate tests with same quality settings as local development
         echo "[WORKFLOW] Calling ai-c-testgen..."
         echo "[DEBUG] Starting tool execution..."
-        timeout 600 python -m ai_c_test_generator.cli --api-key "$GEMINI_API_KEY" --source-dir src/ --regenerate-on-low-quality --max-regeneration-attempts 3 --quality-threshold high --redact-sensitive --verbose 2>&1 | head -50
-        echo "[DEBUG] Tool execution completed"
+        echo "[DEBUG] Current directory: $(pwd)"
+        echo "[DEBUG] Files in current directory:"
+        ls -la | head -10
+        echo "[DEBUG] Files in src directory:"
+        ls -la src/ | head -10
+        timeout 300 python -c "
+import os
+os.environ['GEMINI_API_KEY'] = '$GEMINI_API_KEY'
+print('Starting tool execution...')
+from ai_c_test_generator.cli import main
+import sys
+sys.argv = ['cli', '--repo-path', '.', '--source-dir', 'src', '--verbose', '--max-files', '1']
+print('About to call main()...')
+main()
+print('Tool execution completed successfully')
+" 2>&1 | head -30
+        echo "[DEBUG] Tool execution finished"
         echo "[WORKFLOW] Test generation completed!"
       timeout-minutes: 90
 
